@@ -1,0 +1,334 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tm)
+library(tidytext)
+library(knitr)
+library(sentimentr)
+library(wordcloud)
+```
+
+## Step 1, Brief Information of Data
+```{r}
+phi_data <- read.csv('../../philosophy_data.csv')
+head(phi_data)
+```
+
+```{r}
+colnames(phi_data)
+```
+In this philosophy story, only columns *title*, *author*, *school*, *original_publication_date*, *sentence_length*, *sentence_lowered* and *lemmatied_str* are used. 
+
+Reorder the dataset according to *original_publication_date*.
+```{r}
+new_phi_data <- phi_data[order(phi_data$original_publication_date),c("title", "author", "school", "original_publication_date", "sentence_length", "sentence_lowered", "lemmatized_str")]
+```
+
+## Step 2, Sentiment Analysis
+In this part, *sentiment* function in package *sentimentr* is used, which helps us approximate the sentiment(polarity) of text by sentence.\
+A score of **1** indicates positive sentiment, a score of **-1** indicates negative sentiment, and a score of **0** indicates neutral sentiment.\
+According to the sentiment score of each sentence in each book, we are able to calculate the mean sentiment score of each book.
+```{r, warning=FALSE}
+list_title <- c()
+list_sentimentscore <- c()
+for (i in unique(new_phi_data$title)){
+  list_title <- append(list_title, i)
+  tem_df <- new_phi_data[new_phi_data$title == i,]
+  tem_s <- sentiment(tem_df$sentence_lowered)
+  sentiment_score <- mean(tem_s[tem_s$sentence_id==1,]$sentiment)
+  list_sentimentscore <- append(list_sentimentscore, sentiment_score)
+}
+```
+
+```{r}
+# Create a new dataframe -title_score- for title and mean score
+title_score <- data.frame(list_title, list_sentimentscore)
+colnames(title_score) <- c("title", "sentiment_score")
+title_score
+```
+```{r}
+# Get unique values of (title, author, school, original_publication_date) in the original dataframe.
+# Join the *title_score* and *unique_phi* together by column *title*. 
+unique_phi <- unique(new_phi_data[,c("title", "author", "school", "original_publication_date")])
+phi_data_score <- merge(x=title_score, y=unique_phi, by="title")
+phi_data_score
+```
+
+```{r}
+# Plot sentiment score of books against their original publication date, also label their schools.
+ggplot(data=phi_data_score)+
+  geom_point(mapping=aes(x=original_publication_date, y=sentiment_score, color=school))+
+  xlab("original publication date")+
+  ylab("mean sentiment score")+
+  ggtitle("Sentiment Score of Books")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+From the graph, the publication dates of books are from around 400BC to 2000. Only 4 of the books are not published from 1500 to 2000.\
+A closer look at books from 1500 to 2000 will be took next.\
+Also, most sentiment scores of books are from 0 to 0.1. A closer attention to books with higher and lower sentiment scores will be paid next.
+
+```{r}
+# Books with 2 highest sentiment scores.
+phi_data_score[order(phi_data_score$sentiment_score),][1:2,]$title
+```
+
+```{r}
+# Book with lowest sentiment score.
+phi_data_score[order(phi_data_score$sentiment_score, decreasing = TRUE),][1,]$title
+```
+
+```{r warning=FALSE}
+# A closer look from 1500 to 2000. 
+ggplot(data=phi_data_score)+
+  geom_point(mapping=aes(x=original_publication_date, y=sentiment_score, color=school))+
+  xlab("original publication date")+
+  ylab("mean sentiment score")+
+  ggtitle("Sentiment Score of Books from 1500 to 2000")+
+  xlim(c(1500,2000))+
+  geom_text(x=1637,y=0.175, label="Discourse On Method", color="red", size=3)+
+  geom_text(x=1961,y=-0.055, label="History Of Madness", color="red", size=3)+
+  geom_text(x=1951,y=-0.035, label="Women, Race, And Class", color="red", size=3)+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+From the closer look, books of **german_idealism** are often will higher sentiment scores and books of **continental** are often with lower sentiment scores.
+These two schools will be analyzed further. 
+
+## Step 3, Word Cloud Analysis
+The text mining method of word could enables us to highlight the most frequently used keywords in graph.\
+In this section, word cloud method and the result of sentiment scores of books are combined.
+
+### Women, Race, And Class
+```{r}
+# Load the text data as a Corpus.
+wrc <- phi_data%>%filter(title=="Women, Race, And Class")
+wrc_lemma <- iconv(wrc$lemmatized_str)
+wrc_lemma <- Corpus(VectorSource(wrc_lemma))
+```
+
+```{r warning=FALSE}
+# Clean data: remove punctuation, some words, numbers, stop wrods and white space
+wrc_lemma <- wrc_lemma%>%
+  tm_map(removePunctuation)%>% 
+  tm_map(removeWords, c("PRON", "one", "can", "must", "also", "may"))%>%
+  tm_map(removeNumbers)%>%
+  tm_map(removeWords, stopwords("english"))%>%
+  tm_map(stripWhitespace)
+```
+
+```{r}
+# Construct a document matrix - a table containing the frequency of words
+wrc_dtm <- TermDocumentMatrix(wrc_lemma)
+wrc_tidy <- tidy(wrc_dtm)
+wrc_overall <- summarise(group_by(wrc_tidy, term), sum(count))
+```
+
+```{r warning = FALSE}
+wordcloud(wrc_overall$term, wrc_overall$`sum(count)`,
+          scale=c(5,0.5),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          random.color=FALSE,
+          colors=brewer.pal(9,"Dark2"))
+```
+
+### History Of Madness
+```{r}
+hm <- phi_data%>%filter(title=="History Of Madness")
+hm_lemma <- iconv(hm$lemmatized_str)
+hm_lemma <- Corpus(VectorSource(hm_lemma))
+```
+
+```{r warning=FALSE}
+hm_lemma <- hm_lemma%>%
+  tm_map(removePunctuation)%>%
+  tm_map(removeWords, c("PRON", "one", "can", "must", "also", "may"))%>%
+  tm_map(removeNumbers)%>%
+  tm_map(removeWords, stopwords("english"))%>%
+  tm_map(stripWhitespace)
+```
+
+```{r}
+hm_dtm <- TermDocumentMatrix(hm_lemma)
+hm_tidy <- tidy(hm_dtm)
+hm_overall <- summarise(group_by(hm_tidy, term), sum(count))
+```
+
+```{r warning = FALSE}
+wordcloud(hm_overall$term, hm_overall$`sum(count)`,
+          scale=c(5,0.5),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          random.color=FALSE,
+          colors=brewer.pal(9,"Dark2"))
+```
+
+### Discourse On Method
+```{r}
+dm <- phi_data%>%filter(title=="Discourse On Method")
+dm_lemma <- iconv(dm$lemmatized_str)
+dm_lemma <- Corpus(VectorSource(dm_lemma))
+```
+
+```{r warning=FALSE}
+dm_lemma <- dm_lemma%>%
+  tm_map(removePunctuation)%>%
+  tm_map(removeWords, c("PRON", "one", "can", "must", "also", "may"))%>%
+  tm_map(removeNumbers)%>%
+  tm_map(removeWords, stopwords("english"))%>%
+  tm_map(stripWhitespace)
+```
+
+```{r}
+dm_dtm <- TermDocumentMatrix(dm_lemma)
+dm_tidy <- tidy(dm_dtm)
+dm_overall <- summarise(group_by(dm_tidy, term), sum(count))
+```
+
+```{r warning = FALSE}
+wordcloud(dm_overall$term, dm_overall$`sum(count)`,
+          scale=c(5,0.5),
+          max.words=200,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          random.color=FALSE,
+          colors=brewer.pal(9,"Dark2"))
+```
+
+### School of german_idealism
+```{r}
+germ <- phi_data%>%filter(school=="german_idealism")
+germ_lemma <- iconv(germ$lemmatized_str)
+germ_lemma <- Corpus(VectorSource(germ_lemma))
+```
+
+```{r warning=FALSE}
+germ_lemma <- germ_lemma%>%
+  tm_map(removePunctuation)%>%
+  tm_map(removeWords, c("PRON", "one", "can", "must", "also", "may"))%>%
+  tm_map(removeNumbers)%>%
+  tm_map(removeWords, stopwords("english"))%>%
+  tm_map(stripWhitespace)
+```
+
+```{r}
+germ_dtm <- TermDocumentMatrix(germ_lemma)
+germ_tidy <- tidy(germ_dtm)
+germ_overall <- summarise(group_by(germ_tidy, term), sum(count))
+```
+
+```{r warning = FALSE}
+wordcloud(germ_overall$term, germ_overall$`sum(count)`,
+          scale=c(5,0.5),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          random.color=FALSE,
+          colors=brewer.pal(9,"Dark2"))
+```
+
+### School of continental
+```{r}
+cont_sch <- phi_data%>%filter(school=="continental")
+cont_sch_lemma <- iconv(cont_sch$lemmatized_str)
+cont_sch_lemma <- Corpus(VectorSource(cont_sch_lemma))
+```
+
+```{r warning=FALSE}
+cont_sch_lemma <- cont_sch_lemma%>%
+  tm_map(removePunctuation)%>%
+  tm_map(removeWords, c("PRON", "one", "can", "must", "also", "may"))%>%
+  tm_map(removeNumbers)%>%
+  tm_map(removeWords, stopwords("english"))%>%
+  tm_map(stripWhitespace)
+```
+
+```{r}
+cont_sch_dtm <- TermDocumentMatrix(cont_sch_lemma)
+cont_sch_tidy <- tidy(cont_sch_dtm)
+cont_sch_overall <- summarise(group_by(cont_sch_tidy, term), sum(count))
+```
+
+```{r warning = FALSE}
+wordcloud(cont_sch_overall$term, cont_sch_overall$`sum(count)`,
+          scale=c(5,0.5),
+          max.words=100,
+          min.freq=1,
+          random.order=FALSE,
+          rot.per=0.3,
+          random.color=FALSE,
+          colors=brewer.pal(9,"Dark2"))
+```
+
+## Step 4, Sentence length and Sentiment Score Analysis
+In this section, sentence length is more focused on. 
+```{r}
+ggplot(data=new_phi_data)+
+  geom_boxplot(mapping=aes(x=school, y=sentence_length, color=school))+
+  theme(axis.text.x=element_text(angle=90))+
+  ggtitle("Distribution of Sentence Length in Each School")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+title_length <- 
+  new_phi_data %>% 
+  group_by(title)%>%
+  summarise(mean_sent_length=mean(sentence_length))
+```
+
+```{r}
+phi_data_score_length <- merge(phi_data_score, title_length, by="title")
+```
+
+```{r warning=FALSE}
+ggplot(data=phi_data_score_length)+
+  geom_point(mapping=aes(x=original_publication_date, y=mean_sent_length, color=school))+
+  xlab("original publication date")+
+  ylab("mean sentence length")+
+  ggtitle("Mean Sentence Length of Books from 1500 to 2000")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+The mean sentence length of books from the same school tend to be clustered together.\
+A closer look at books from 1500 to 2000 will be provided.
+```{r warning=FALSE}
+ggplot(data=phi_data_score_length)+
+  geom_point(mapping=aes(x=original_publication_date, y=mean_sent_length, color=school))+
+  xlab("original publication date")+
+  ylab("mean sentence length")+
+  ggtitle("Mean Sentence Length of Books from 1500 to 2000")+
+  xlim(c(1500, 2000))+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+It is clear that the mean sentence length of books from the same school, for example, books from german_idealism, books from continental are close. 
+
+
+```{r warning=FALSE}
+ggplot(data=phi_data_score_length, mapping = aes(x=mean_sent_length, y=sentiment_score))+
+  geom_point(mapping=aes(color=school))+
+  geom_smooth(method="lm", se=FALSE)+
+  xlab("Mean Sentence Length")+
+  ylab("Sentiment Score")+
+  ggtitle("Sentiment Score v. Mean Sentence Length of Books")
+```
+Apply linear regression to *sentiment_score~mean_sent_length*.
+```{r}
+lm <- lm(sentiment_score~mean_sent_length, data=phi_data_score_length)
+summary(lm)
+```
+The result of linear regression shows that there is significant positice relation between sentiment score and mean sentence length. 
+
+
+
+
+
+
