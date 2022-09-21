@@ -327,7 +327,7 @@ From the linear regression line in the graph, there seems to be a positive relat
 lm <- lm(sentiment_score~mean_sent_length, data=phi_data_score_length)
 summary(lm)
 ```
-The result of linear regression shows that there is a significant positive relation between sentiment score and mean sentence length, which means, a more positive book tends to have longer sentences.\
+The result of linear regression shows that there is a significant positive relation between sentiment score and mean sentence length, which means, book with longer sentences tends to be more positive.
 
 ## The End.
 
