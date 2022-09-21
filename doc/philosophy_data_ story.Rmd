@@ -23,15 +23,15 @@ colnames(phi_data)
 ```
 In this philosophy story, only columns *title*, *author*, *school*, *original_publication_date*, *sentence_length*, *sentence_lowered* and *lemmatized_str* are used. 
 
-Reorder the dataset according to *original_publication_date* and select the needed columns.
+A reordered dataset according to the original publication date is provided. 
 ```{r}
 new_phi_data <- phi_data[order(phi_data$original_publication_date),c("title", "author", "school", "original_publication_date", "sentence_length", "sentence_lowered", "lemmatized_str")]
 ```
 
 ## Section 2. Sentiment Analysis
-In this part, *sentiment* function in package *sentimentr* is used, which helps approximate the sentiment(polarity) of text by sentence.\
+In this part, sentiment score is used for sentence analysis.\
 A score of **1** indicates positive sentiment, a score of **-1** indicates negative sentiment, and a score of **0** indicates neutral sentiment.\
-According to the sentiment score of each sentence in each book, we are able to calculate the mean sentiment score of each book.
+The mean sentiment score of each book is calculated.
 ```{r, warning=FALSE}
 list_title <- c()
 list_sentimentscore <- c()
@@ -51,7 +51,7 @@ colnames(title_score) <- c("title", "sentiment_score")
 head(title_score)
 ```
 ```{r}
-# Get unique values of (title, author, school, original_publication_date) in the original dataframe.
+# Get unique values of (title, author, school, original_publication_date) in the new dataframe.
 # Join the *title_score* and *unique_phi* together by column *title*. 
 unique_phi <- unique(new_phi_data[,c("title", "author", "school", "original_publication_date")])
 phi_data_score <- merge(x=title_score, y=unique_phi, by="title")
@@ -67,9 +67,7 @@ ggplot(data=phi_data_score)+
   ggtitle("Sentiment Score of Books")+
   theme(plot.title = element_text(hjust = 0.5))
 ```
-From the graph, the publication dates of books are from around 400 B.C. to 2000. Only 4 of the books are not published from 1500 to 2000.\
-A closer look at books from 1500 to 2000 will be looked at next.\
-Also, most sentiment scores of books are from 0 to 0.1. A closer attention to books with higher and lower sentiment scores will be paid next.
+From the graph, only 4 of the books were not published from 1500 to 2000.
 
 ```{r}
 # Books with 2 lowest sentiment scores.
@@ -80,7 +78,7 @@ phi_data_score[order(phi_data_score$sentiment_score),][1:2,]$title
 # Book with highest sentiment score.
 phi_data_score[order(phi_data_score$sentiment_score, decreasing = TRUE),][1,]$title
 ```
-
+We see that **History of Madness** and **Women, Race, And Class** have lowest sentiment scores and **Discourse On Method** has highest sentiment score.
 ```{r warning=FALSE}
 # A closer look from 1500 to 2000. 
 ggplot(data=phi_data_score)+
@@ -94,12 +92,11 @@ ggplot(data=phi_data_score)+
   geom_text(x=1951,y=-0.035, label="Women, Race, And Class", color="red", size=3)+
   theme(plot.title = element_text(hjust = 0.5))
 ```
-From the closer look, books of **german_idealism** are often will higher sentiment scores and books of **continental** are often with lower sentiment scores.\
-These two schools will be analyzed further. 
+From the closer look, books of **german_idealism** are often with higher sentiment scores and books of **continental** are often with lower sentiment scores.\
+These three books and two schools will be analyzed further. 
 
 ## Section 3. Word Cloud Analysis
-The text mining method of word cloud enables us to highlight the most frequently used keywords from the graph.\
-In this section, word cloud method and the result of sentiment scores of books are combined.
+The text mining method of word cloud enables us to highlight the most frequently used keywords in the text.
 
 ### 3.1 History Of Madness
 ```{r}
@@ -137,7 +134,7 @@ wordcloud(hm_overall$term, hm_overall$`sum(count)`,
           colors=brewer.pal(9,"Dark2"))
 ```
 
-The book **History of Madness** talks about the origin and earlier development of madness. From the wordcloud graph above, words like **confinement, madness, insane, madman, delirium** refers how people with madness are treated. Most of the words here are negative, which is in line with the sentiment score of the book. 
+The book **History of Madness** talks about the origin and earlier development of madness. From the word cloud graph above, words like **confinement, madness, insane, madman, delirium** refer how people with madness are treated. Most of the words here are negative, which is in line with the sentiment score of the book. 
 
 ### 3.2 Women, Race, And Class
 ```{r}
@@ -171,7 +168,7 @@ wordcloud(wrc_overall$term, wrc_overall$`sum(count)`,
           random.color=FALSE,
           colors=brewer.pal(9,"Dark2"))
 ```
-The book **Women, Race, And Class** contains Marxist feminist analysis of gender, race and class. Words like **woman, man, sexual** implies that this book talks mainly about genders. Also, based on genders, topics about races(black, white) are also discussed. This book also talks about slavery and the potential economic effect it has. The author Davis was one of the first scholars to make an inter sectional analysis of race, gender and class. In this book, she analyzed existing phenomenons and problems. 
+The book **Women, Race, And Class** contains Marxist feminist analysis of gender, race and class. Words like **woman, man, sexual** imply that this book talks mainly about genders. Also, based on genders, topics about races(black, white) are also discussed. This book also talks about slavery and the potential economic effect it has. 
 
 ### 3.3 Discourse On Method
 ```{r}
@@ -205,11 +202,10 @@ wordcloud(dm_overall$term, dm_overall$`sum(count)`,
           random.color=FALSE,
           colors=brewer.pal(9,"Dark2"))
 ```
-The book **Discourse On Method**, from school of rationalism, is published by 
-Descartes in 1637. This book is one of the most influential works in the history of modern philosophy, and important to the development of natural sciences. The book aims to talk about four methods to solve problems in nature. From the wordcloud plot above, words like **nature, truth, reason** also point out the main ideas.
+The book **Discourse On Method**, from school of rationalism, is important to the development of natural sciences. The book aims to talk about four methods to solve problems in nature. From the word cloud graph above, words like **nature, truth, reason** also point out the main ideas.
 
 ### 3.4 School of german_idealism
-Books from school of german_idealism are with higher sentiment scores. This section will take a closer look at books from idealism.
+Books from school of german_idealism are with higher sentiment scores.
 ```{r}
 germ <- phi_data%>%filter(school=="german_idealism")
 germ_lemma <- iconv(germ$lemmatized_str)
@@ -241,11 +237,11 @@ wordcloud(germ_overall$term, germ_overall$`sum(count)`,
           random.color=FALSE,
           colors=brewer.pal(9,"Dark2"))
 ```
-The philosophical meaning of idealism are those properties we discover in objects that are dependent on the way that those objects appear to us, as perceiving subjects.\
-From the word cloud graph above, words like **concept, self, consciousness** also illustrate that these books talk more about thinking by yourselves.
+The philosophical meaning of idealism are those properties we discover in objects are dependent on the way that those objects appear to us, as perceiving subjects.\
+From the word cloud graph above, words like **concept, self** also illustrate this.
 
 ### 3.5 School of continental
-Books from school of continental are with lower sentiment scores. This section will take a closer look at books from continental.
+Books from school of continental are with lower sentiment scores.
 ```{r}
 cont_sch <- phi_data%>%filter(school=="continental")
 cont_sch_lemma <- iconv(cont_sch$lemmatized_str)
@@ -277,7 +273,7 @@ wordcloud(cont_sch_overall$term, cont_sch_overall$`sum(count)`,
           random.color=FALSE,
           colors=brewer.pal(9,"Dark2"))
 ```
-The school of continental talks more about difference and fight. The book **History of Madness** mentioned before is also from continental school. Words like **madness, difference, fact** illustrate that books from this school focus more on different phenomenons and society.
+The school of continental talks more about difference and fight. Words like **madness, difference, fact** illustrate that books from this school focus more on negative side of society.
 
 ## Section 4. Sentence length Analysis
 In this section, sentence length is more focused on. 
@@ -288,7 +284,7 @@ ggplot(data=new_phi_data)+
   ggtitle("Boxplot of Sentence Length in Each School")+
   theme(plot.title = element_text(hjust = 0.5))
 ```
-There are always outliers of sentence length in books from the same school. Most sentences in the same school have similar length. 
+There are always outliers of sentence length in each school.
 ```{r}
 # Calculate mean sentence of each book and combine it with phi_data_score.
 title_length <- 
@@ -303,11 +299,10 @@ ggplot(data=phi_data_score_length)+
   geom_point(mapping=aes(x=original_publication_date, y=mean_sent_length, color=school))+
   xlab("original publication date")+
   ylab("mean sentence length")+
-  ggtitle("Sentence Length of Books from 1500 to 2000")+
+  ggtitle("Sentence Length of Books")+
   theme(plot.title = element_text(hjust = 0.5))
 ```
-The mean sentence length of books from the same school tends to be together.\
-A closer look at books from 1500 to 2000 will also be provided.
+The mean sentence length of books from the same school tends to be together.
 ```{r warning=FALSE}
 ggplot(data=phi_data_score_length)+
   geom_point(mapping=aes(x=original_publication_date, y=mean_sent_length, color=school))+
@@ -317,7 +312,7 @@ ggplot(data=phi_data_score_length)+
   xlim(c(1500, 2000))+
   theme(plot.title = element_text(hjust = 0.5))
 ```
-It is clear that the mean sentence length of books from the same school, for example, books from german_idealism, books from continental, are close. In section 3, books from the same school tend to share similar sentiment scores. Will there be any relation between sentiment scores and sentence length? An analysis between scores and length is needed. 
+A closer look at books shows that for example, books from german_idealism, have similar sentence length. In section 3, books from the same school tend to share similar sentiment scores. Will there be any relation between sentiment scores and sentence length?
 
 ```{r warning=FALSE}
 ggplot(data=phi_data_score_length, mapping = aes(x=mean_sent_length, y=sentiment_score))+
@@ -327,12 +322,12 @@ ggplot(data=phi_data_score_length, mapping = aes(x=mean_sent_length, y=sentiment
   ylab("Sentiment Score")+
   ggtitle("Sentiment Score v. Mean Sentence Length of Books")
 ```
-Applying linear regression to *sentiment_score~mean_sent_length*, there seems to be a positive relation between score and sentence length. 
+From the linear regression line in the graph, there seems to be a positive relation.
 ```{r}
 lm <- lm(sentiment_score~mean_sent_length, data=phi_data_score_length)
 summary(lm)
 ```
-The result of linear regression shows that there is significant positive relation between sentiment score and mean sentence length, which means, a more positive book tends to have longer sentences.\
+The result of linear regression shows that there is a significant positive relation between sentiment score and mean sentence length, which means, a more positive book tends to have longer sentences.\
 
 ## The End.
 
